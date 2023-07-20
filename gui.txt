@@ -1,0 +1,85 @@
+function hypergraphGUI()
+    % Create the GUI figure and components
+    fig = figure('Name', 'Hypergraph Coloring', 'Position', [200, 200, 800, 600]);
+    axesColors = axes('Parent', fig, 'Position', [0.1, 0.1, 0.8, 0.4]);
+    axesInterferers = axes('Parent', fig, 'Position', [0.1, 0.55, 0.8, 0.4]);
+    button = uicontrol('Style', 'pushbutton', 'String', 'Start', 'Position', [20, 20, 60, 25], 'Callback', @startButtonCallback);
+    
+    % Load and preprocess hypergraph data
+    hypergraphData = readtable('hypergraph_dataset1.csv');
+    N = size(hypergraphData, 1); % Number of vertices
+    K = max(max(hypergraphData{:, 2:end})); % Number of hyperedges
+    
+    % Initialize variables
+    deltaSU = 0.5; % Independent interferer threshold for SU
+    deltaPU = 0.7; % Independent interferer threshold for PU
+    etaSU = 0.6; % Cumulative interferer threshold for SU
+    
+    independentInterferers = zeros(N, 1); % Initialize independentInterferers
+    cumulativeInterferers = zeros(N, N); % Initialize cumulativeInterferers
+    coloring = zeros(N, 1); % Initialize coloring
+    
+    % Callback function for the start button
+    function startButtonCallback(~, ~)
+        % Independent Interferer Phase
+        while ~all(independentInterferers) % Until all SUs find their independent interferer
+            for i = 1:N % For each Secondary user
+                if (rand() > deltaSU || rand() > deltaPU) % If the condition is satisfied
+                    independentInterferers(i) = 1; % Mark the user as an independent interferer
+                end
+            end
+            % Form edges with the independent interferer
+            % (implementation of this step is not provided in the pseudocode)
+        end
+        
+        % Cumulative Interferer Phase
+        for i = 1:N % For each Secondary user
+            vertexIndices = randperm(N, K); % Choose K random vertices to form a hyperedge
+            cumulativeInterferers(i, vertexIndices) = 1; % Mark vertices that belong to hyperedges
+        end
+        cumulativeInterferers(logical(eye(size(cumulativeInterferers)))) = 0; % Remove self-loops
+        
+        % Vertex coloring
+        colors = {'red', 'green', 'blue', 'yellow', 'magenta'}; % Available color set
+        for i = N:-1:1 % For i = n down to 1
+            % Find the vertex of minimum monodegree in H
+            minDegree = inf;
+            minVertex = 0;
+            for j = 1:N
+                if (sum(cumulativeInterferers(j, :)) < minDegree && coloring(j) == 0) % If the vertex belongs to H and has not been labeled
+                    minDegree = sum(cumulativeInterferers(j, :));
+                    minVertex = j;
+                end
+            end
+            % Label the vertex
+            coloring(minVertex) = i;
+            % Delete the vertex and form induced sub-hypergraph H'
+            vertexIndices = find(cumulativeInterferers(minVertex, :) == 1);
+Indices = find(cumulativeInterferers(minVertex, :) == 1);
+cumulativeInterferers(vertexIndices, :) = cumulativeInterferers(vertexIndices, :) - repmat(cumulativeInterferers(minVertex, :), length(vertexIndices), 1);
+% Color the node
+availableColors = colors;
+for j = vertexIndices % Remove the colors of adjacent nodes
+if (coloring(j) ~= 0)
+availableColors(strcmp(availableColors, coloring(j))) = [];
+end
+end
+if ~isempty(availableColors) % If there are available colors
+coloring(minVertex) = availableColors{randi(length(availableColors))}(1);
+else % If there are no available colors
+coloring(minVertex) = '';
+end
+
+
+        % Update the GUI plots
+        cla(axesColors);
+        cla(axesInterferers);
+        plot(axesColors, coloring, 'o', 'MarkerSize', 10);
+        plot(axesInterferers, cumulativeInterferers);
+        title(axesColors, 'Vertex Coloring');
+        title(axesInterferers, 'Cumulative Interferers');
+        xlim(axesColors, [1, N]);
+        ylim(axesColors, [0, N]);
+    end
+end
+end
